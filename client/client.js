@@ -7,5 +7,7 @@ launchButton.addEventListener('click', () => {
 
   const launcher = document.createElement('game-launcher');
 
+  launcher.setAttribute('src', '../game/index.html');
+
   document.body.append(launcher);
 });
