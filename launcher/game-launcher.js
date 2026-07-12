@@ -2,7 +2,62 @@ class GameLauncher extends HTMLElement {
   constructor() {
     super();
     this.revealTimer = null;
+
+    this.scrollPosition = 0;
+    this.originalBodyStyles = null;
+
     this.handleMessage = this.handleMessage.bind(this);
+
+    this.preventWheel = (event) => {
+      event.preventDefault();
+    };
+
+    this.preventPinch = (event) => {
+      if (event.touches.length > 1) {
+        event.preventDefault();
+      }
+    };
+
+    this.preventGesture = (event) => {
+      event.preventDefault();
+    };
+  }
+
+  lockPage() {
+    this.scrollPosition = window.scrollY;
+
+    this.originalBodyStyles = {
+      position: document.body.style.position,
+      top: document.body.style.top,
+      width: document.body.style.width,
+      overflow: document.body.style.overflow,
+      paddingRight: document.body.style.paddingRight,
+    };
+
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${this.scrollPosition}px`;
+    document.body.style.width = '100%';
+    document.body.style.overflow = 'hidden';
+    document.body.style.paddingRight = `${scrollbarWidth}px`;
+  }
+
+  unlockPage() {
+    if (!this.originalBodyStyles) {
+      return;
+    }
+
+    document.body.style.position = this.originalBodyStyles.position;
+    document.body.style.top = this.originalBodyStyles.top;
+    document.body.style.width = this.originalBodyStyles.width;
+    document.body.style.overflow = this.originalBodyStyles.overflow;
+    document.body.style.paddingRight = this.originalBodyStyles.paddingRight;
+
+    window.scrollTo(0, this.scrollPosition);
+
+    this.originalBodyStyles = null;
   }
 
   connectedCallback() {
@@ -23,6 +78,7 @@ class GameLauncher extends HTMLElement {
     }
 
     const shadow = this.attachShadow({ mode: 'open' });
+    this.lockPage();
 
     shadow.innerHTML = `
     <style>
@@ -80,6 +136,19 @@ class GameLauncher extends HTMLElement {
     this.loader = shadow.querySelector('.loader');
 
     window.addEventListener('message', this.handleMessage);
+
+    window.addEventListener('wheel', this.preventWheel, {
+      passive: false,
+    });
+
+    window.addEventListener('touchmove', this.preventPinch, {
+      passive: false,
+    });
+
+    window.addEventListener('gesturestart', this.preventGesture);
+
+    window.addEventListener('gesturechange', this.preventGesture);
+
     this.iframe.src = parsedGameUrl.href;
   }
 
@@ -111,7 +180,15 @@ class GameLauncher extends HTMLElement {
 
   disconnectedCallback() {
     window.removeEventListener('message', this.handleMessage);
+
+    window.removeEventListener('wheel', this.preventWheel);
+    window.removeEventListener('touchmove', this.preventPinch);
+    window.removeEventListener('gesturestart', this.preventGesture);
+    window.removeEventListener('gesturechange', this.preventGesture);
+
     clearTimeout(this.revealTimer);
+
+    this.unlockPage();
   }
 }
 
